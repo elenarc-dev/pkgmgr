@@ -3,6 +3,8 @@ mod database;
 mod models;
 mod pacman;
 
+use std::env::current_dir;
+
 use anyhow::{Result, bail};
 use rusqlite::Connection;
 
@@ -125,7 +127,38 @@ fn cmd_install(
             "se requiere <paquete>. Uso: pkg install <paquete> [-c <categoría>] [-d <desc>] [-o <origen>] (alias: pkg i)"
         );
     };
-    for name in names {
+
+    if origin.is_none_or(|x| x.eq_ignore_ascii_case("pacman")) {
+        install_pacman(category, command, description, origin, names)?;
+    } else if origin.is_some_and(|x| x.eq_ignore_ascii_case("appimage")) {
+        if command.is_none() {
+            bail!("Para AppImage el parametro <paquete> es el propio fichero .AppImage")
+        } else {
+            install_appimage(category, command, description, origin, names)?
+        }
+    }
+    Ok(())
+}
+
+fn install_appimage(
+    category: Option<String>,
+    command: Option<&str>,
+    description: Option<&str>,
+    origin: Option<&str>,
+    names: &[String],
+) -> Result<(), anyhow::Error> {
+    let path = current_dir()?;
+    println!("cwd {}", path.display());
+    Ok(())
+}
+fn install_pacman(
+    category: Option<String>,
+    command: Option<&str>,
+    description: Option<&str>,
+    origin: Option<&str>,
+    names: &[String],
+) -> Result<(), anyhow::Error> {
+    Ok(for name in names {
         match pacman::find_in_repos(name) {
             Ok(true) => pacman::install(name)?,
             Ok(false) => {
@@ -149,8 +182,7 @@ fn cmd_install(
             description,
             origin,
         );
-    }
-    Ok(())
+    })
 }
 
 /// Registra un paquete en el catálogo con origen por defecto "pacman"
