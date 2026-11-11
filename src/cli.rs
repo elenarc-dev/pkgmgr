@@ -33,11 +33,14 @@ pub enum Command {
         #[arg(short = 'o', long, value_name = "ORIGIN")]
         origin: Option<String>,
     },
-    /// Instala con pacman y registra en el catálogo; si no existe en los
-    /// repos avisa pero lo registra igual (útil para AUR u otras vías).
+    /// Instala con pacman y registra en el catálogo; si <paquete> es un fichero
+    /// .AppImage lo copia a ~/Apps (permisos 700) y lo registra (--command es
+    /// el nombre en el catálogo y, si faltan --command o -d, se preguntan de
+    /// forma interactiva). Si el paquete no existe en los repos avisa pero lo
+    /// registra igual (útil para AUR u otras vías).
     #[command(visible_alias = "i")]
     Install {
-        /// Nombre del paquete según pacman
+        /// Nombre del paquete según pacman, o fichero .AppImage (con o sin ruta)
         package: Option<Vec<String>>,
         /// Categoría personal; sin valor, muestra las categorías disponibles
         #[arg(short, long, num_args = 0..=1, default_missing_value = "")]

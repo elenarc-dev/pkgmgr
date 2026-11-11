@@ -1,11 +1,10 @@
+mod appimage;
 mod cli;
 mod database;
 mod models;
 mod pacman;
 
-use std::env::current_dir;
-
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use rusqlite::Connection;
 
 use clap::Parser;
@@ -105,11 +104,18 @@ fn cmd_add(
     Ok(())
 }
 
-/// `pkg install [<paquete>] [-c <categoria>] [--command <cmd>] [-d <desc>] [-o <origen>]`:
-/// instala con pacman (logs visibles) y, si tiene éxito, registra el paquete
-/// en el catálogo con origen "pacman" por defecto. Si el paquete no existe en
-/// los repos lo avisa pero lo registra igual (util para herramientas
-/// instaladas por otra via).
+/// `pkg install [<paquete>] [-c <categoria>] [--command <cmd>] [-d <desc>] [-o <origen>]`
+/// tiene dos modos:
+///
+/// - Paquetes (por defecto): instala con pacman (logs visibles) y registra en
+///   el catálogo con origen "pacman" por defecto. Si el paquete no existe en
+///   los repos lo avisa pero lo registra igual (útil para AUR u otras vías,
+///   p. ej. `pkg install paquete -o AUR`).
+/// - AppImages: cualquier <paquete> que acabe en `.AppImage` (con o sin ruta)
+///   se copia a `~/Apps` con permisos 700 y se registra en el catálogo;
+///   `--command` fija el nombre en el catálogo y `-d` la descripción (si
+///   faltan, se preguntan de forma interactiva).
+///
 /// Con `-c` sin valor muestra las categorías disponibles.
 fn cmd_install(
     package: Option<&[String]>,
@@ -128,37 +134,133 @@ fn cmd_install(
         );
     };
 
-    if origin.is_none_or(|x| x.eq_ignore_ascii_case("pacman")) {
-        install_pacman(category, command, description, origin, names)?;
-    } else if origin.is_some_and(|x| x.eq_ignore_ascii_case("appimage")) {
-        if command.is_none() {
-            bail!("Para AppImage el parametro <paquete> es el propio fichero .AppImage")
-        } else {
-            install_appimage(category, command, description, origin, names)?
-        }
+    // Cada <paquete> es un paquete pacman o un fichero .AppImage; se reparten
+    // por rutas distintas.
+    let (appimages, pacman_refs): (Vec<&String>, Vec<&String>) = names
+        .iter()
+        .partition(|n| appimage::is_appimage(n.as_str()));
+
+    if appimages.is_empty() && origin.is_some_and(|x| x.eq_ignore_ascii_case("appimage")) {
+        bail!(
+            "para instalar un AppImage indica el fichero .AppImage como <paquete>: pkg install <app.AppImage> --command <nombre> [-d <descripción>] [-c <categoría>]"
+        );
+    }
+    if appimages.len() > 1 && (command.is_some() || description.is_some()) {
+        bail!(
+            "con varios .AppImage el nombre y la descripción se preguntan por cada fichero; no pueden fijarse con --command ni -d"
+        );
+    }
+
+    if !pacman_refs.is_empty() {
+        let pacman_names: Vec<String> = pacman_refs.iter().map(|s| (*s).clone()).collect();
+        install_pacman(
+            category.as_deref(),
+            command,
+            description,
+            origin,
+            &pacman_names,
+        )?;
+    }
+    for file in appimages {
+        install_appimage(
+            file.as_str(),
+            category.as_deref(),
+            command,
+            description,
+            origin,
+        )?;
     }
     Ok(())
 }
 
+/// Instala un fichero .AppImage: copia a `~/Apps` (permisos 700) y registro en
+/// el catálogo. Primero reúne todos los datos (nombre via `--command` o
+/// preguntando, descripción via `-d` o preguntando, confirmaciones de
+/// sobrescritura del registro y del fichero destino) y solo entonces copia.
 fn install_appimage(
-    category: Option<String>,
+    file: &str,
+    category: Option<&str>,
     command: Option<&str>,
     description: Option<&str>,
     origin: Option<&str>,
-    names: &[String],
-) -> Result<(), anyhow::Error> {
-    let path = current_dir()?;
-    println!("cwd {}", path.display());
-    Ok(())
+) -> Result<()> {
+    let src = std::path::Path::new(file);
+    if !src.is_file() {
+        bail!("'{file}' no es un fichero .AppImage accesible");
+    }
+    let file_name = src
+        .file_name()
+        .context("no se pudo determinar el nombre del fichero")?
+        .to_string_lossy()
+        .into_owned();
+    let apps = appimage::apps_dir()?;
+    let dst = apps.join(&file_name);
+    appimage::check_destination(&dst)?;
+    // Compruebo que puedo crear ficheros en ~/Apps antes de pedir datos.
+    appimage::prepare(&apps)?;
+
+    // Nombre en el catálogo: flag --command o pregunta interactiva.
+    let name = match command {
+        Some(cmd) => appimage::validate_command(cmd)?,
+        None => appimage::ask_name(&appimage::suggest_command(&file_name))?,
+    };
+
+    // Descripción: flag -d o pregunta interactiva.
+    let desc = match description.map(str::trim).filter(|d| !d.is_empty()) {
+        Some(d) => d.to_string(),
+        None => appimage::ask_description()?,
+    };
+
+    // Sobrescritura del registro en el catálogo.
+    let conn = database::open()?;
+    if database::get_info(&conn, &name)?.is_some()
+        && !appimage::confirm(&format!("'{name}' ya está en el catálogo. ¿Sobrescribir?"))?
+    {
+        bail!("instalación cancelada: '{name}' ya existe en el catálogo");
+    }
+
+    // Sobrescritura del fichero en ~/Apps.
+    let dst_display = dst.display().to_string();
+    if appimage::needs_confirmation(&dst, src)
+        && !appimage::confirm(&format!("'{dst_display}' ya existe. ¿Sobrescribir?"))?
+    {
+        bail!(
+            "instalación cancelada: {dst_display} ya existe (renombra el .AppImage de origen si quieres conservar ambos)"
+        );
+    }
+
+    let installed = appimage::install_file(src, &apps)?;
+    println!(
+        "AppImage instalado en {} (permisos 700).",
+        installed.display()
+    );
+
+    // La descripción se guarda en los dos campos: en el de pacman (lo que
+    // consulta `pkg search`) y como descripción personal (así sobrevive a un
+    // futuro `pkg add`/`pkg info`, que reescriben la caché de pacman con datos
+    // vacíos para un AppImage). La versión sale del nombre del fichero.
+    let info = PacmanInfo {
+        description: desc.clone(),
+        version: appimage::version_from_file_name(&file_name),
+    };
+    cmd_register(
+        &name,
+        &info,
+        category,
+        Some(name.as_str()),
+        Some(desc.as_str()),
+        Some(origin.unwrap_or("appimage")),
+    )
 }
+
 fn install_pacman(
-    category: Option<String>,
+    category: Option<&str>,
     command: Option<&str>,
     description: Option<&str>,
     origin: Option<&str>,
     names: &[String],
 ) -> Result<(), anyhow::Error> {
-    Ok(for name in names {
+    for name in names {
         match pacman::find_in_repos(name) {
             Ok(true) => pacman::install(name)?,
             Ok(false) => {
@@ -174,15 +276,9 @@ fn install_pacman(
         // registra con metadatos vacíos, como pide el comportamiento de
         // "avisar pero añadir igual".
         let info = pacman::fetch_info(name).unwrap_or_default();
-        cmd_register(
-            name,
-            &info,
-            category.as_deref(),
-            command,
-            description,
-            origin,
-        );
-    })
+        cmd_register(name, &info, category, command, description, origin)?;
+    }
+    Ok(())
 }
 
 /// Registra un paquete en el catálogo con origen por defecto "pacman"
