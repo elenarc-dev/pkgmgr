@@ -75,7 +75,6 @@ pub fn install_file(src: &Path, dst_dir: &Path) -> Result<PathBuf> {
     check_destination(&dst)?;
 
     if comparte_inode(src, &dst) {
-        let _ = mover(src, &dst);
         // El destino es el mismo fichero que el origen (p. ej. ya estaba
         // instalado): copiar lo destruiría, así que solo ajusto permisos. Ojo:
         // si además comparte inode con otro fichero, esos permisos cambian en
@@ -83,20 +82,20 @@ pub fn install_file(src: &Path, dst_dir: &Path) -> Result<PathBuf> {
         hacer_ejecutable(&dst)?;
         return Ok(dst);
     }
+    let _ = mover(src, &dst);
 
     prepare(dst_dir)?;
     Ok(dst)
 }
 
 /// Copia a un temporal del mismo directorio (creándolo 600, y dejándolo 700
-/// antes de que exista en el destino) y lo coloca con `rename`, que sustituye
+/// antes de que exista en el destino) y lo coloca con ``, que sustituye
 /// lo que hubiera sin escribir a través de ello.
 fn mover(src: &Path, dst: &Path) -> Result<()> {
     std::fs::rename(src, dst)
         .with_context(|| format!("no se pudo colocar {} en {}", src.display(), dst.display()))?;
-    hacer_ejecutable(dst)?;
 
-    Ok(())
+        Ok(())
 }
 
 /// Deja `path` con permisos 700.

@@ -92,6 +92,7 @@ fn cmd_add(
             command,
             origin,
             description,
+            None,
             &info,
         )?;
 
@@ -251,6 +252,7 @@ fn install_appimage(
         Some(name.as_str()),
         Some(desc.as_str()),
         Some(origin.unwrap_or("appimage")),
+        Some(&file_name),
     )
 }
 
@@ -277,7 +279,7 @@ fn install_pacman(
         // registra con metadatos vacíos, como pide el comportamiento de
         // "avisar pero añadir igual".
         let info = pacman::fetch_info(name).unwrap_or_default();
-        cmd_register(name, &info, category, command, description, origin)?;
+        cmd_register(name, &info, category, command, description, origin, None)?;
     }
     Ok(())
 }
@@ -291,11 +293,12 @@ fn cmd_register(
     command: Option<&str>,
     description: Option<&str>,
     origin: Option<&str>,
+    appimage_file: Option<&str>,
 ) -> Result<()> {
     let origin = origin.or(Some("pacman"));
     let conn = database::open()?;
     let existed = database::get_info(&conn, name)?.is_some();
-    database::upsert(&conn, name, category, command, origin, description, info)?;
+    database::upsert(&conn, name, category, command, origin, description, appimage_file, info)?;
 
     match (existed, category) {
         (true, Some(cat)) => println!("'{name}' actualizado (categoría: {cat})."),
@@ -384,7 +387,7 @@ fn cmd_info(names: Vec<String>) -> Result<()> {
         // se muestra lo que haya en caché con un aviso.
         let info = match pacman::fetch_info(name.as_str()) {
             Ok(info) => {
-                database::upsert(&conn, name.as_str(), None, None, None, None, &info)?;
+                database::upsert(&conn, name.as_str(), None, None, None, None, None, &info)?;
                 info
             }
             Err(_) => {
@@ -455,9 +458,15 @@ fn cmd_execute(name: &str) -> Result<()> {
         bail!("'{name}' no es un AppImage (origen: {:?}). Solo se pueden ejecutar AppImages.", pkg.origin.as_deref().unwrap_or("desconocido"));
     }
 
+    // Usamos el nombre original del fichero guardado al instalar.
+    let appimage_file = match &pkg.appimage_file {
+        Some(f) => f,
+        None => bail!("'{name}' no tiene registrado el nombre del fichero .AppImage. Reinstálalo con 'pkg install <archivo.AppImage>'."),
+    };
+
     // Construimos la ruta del .AppImage en ~/Apps.
     let apps = appimage::apps_dir()?;
-    let appimage_path = apps.join(format!("{name}.AppImage"));
+    let appimage_path = apps.join(appimage_file);
 
     if !appimage_path.exists() {
         bail!(

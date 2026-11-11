@@ -9,6 +9,8 @@ pub struct Pkg {
     /// De dónde salió el registro: "pacman" (via pkg install), "manual" (via
     /// pkg add) o un texto libre del usuario (-o/--origin).
     pub origin: Option<String>,
+    /// Nombre original del fichero .AppImage cuando el origen es "appimage".
+    pub appimage_file: Option<String>,
     /// Fecha (UTC) en que se añadió al catálogo, ISO-8601.
     pub added_at: String,
 }

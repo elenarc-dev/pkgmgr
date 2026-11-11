@@ -41,13 +41,17 @@ pub fn open() -> Result<Connection> {
     .context("no se pudo inicializar el esquema")?;
 
     // Migraciones: añadir columnas si faltan (v1->v2 command, v3 origin,
-    // v4 description_custom).
+    // v4 description_custom, v5 appimage_file).
     for (column, ddl) in [
         ("command", "ALTER TABLE packages ADD COLUMN command TEXT;"),
         ("origin", "ALTER TABLE packages ADD COLUMN origin TEXT;"),
         (
             "description_custom",
             "ALTER TABLE packages ADD COLUMN description_custom TEXT;",
+        ),
+        (
+            "appimage_file",
+            "ALTER TABLE packages ADD COLUMN appimage_file TEXT;",
         ),
     ] {
         let has_column: bool = conn
@@ -70,8 +74,8 @@ pub fn open() -> Result<Connection> {
 
 /// Inserta o actualiza un paquete en el catálogo y guarda los metadatos de pacman.
 ///
-/// - `category`/`command`/`origin`/`custom_description` solo se escriben si se
-///   pasan (re-añadir sin ellos conserva lo que ya había).
+/// - `category`/`command`/`origin`/`custom_description`/`appimage_file` solo se
+///   escriben si se pasan (re-añadir sin ellos conserva lo que ya había).
 /// - Sin `origin`, la primera inserción usa "manual".
 /// - `description` guarda siempre la de pacman; `custom_description` (-d) es la
 ///   personal, que gana al mostrar (ver `get_description`).
@@ -83,18 +87,20 @@ pub fn upsert(
     command: Option<&str>,
     origin: Option<&str>,
     custom_description: Option<&str>,
+    appimage_file: Option<&str>,
     info: &PacmanInfo,
 ) -> Result<()> {
     conn.execute(
-        "INSERT INTO packages (name, description, version, category, command, origin, description_custom, added_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'manual'), ?7, datetime('now'))
+        "INSERT INTO packages (name, description, version, category, command, origin, description_custom, added_at, appimage_file)
+         VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 'manual'), ?7, datetime('now'), ?8)
          ON CONFLICT(name) DO UPDATE SET
             description        = excluded.description,
             version            = excluded.version,
             category           = COALESCE(?4, packages.category),
             command            = COALESCE(?5, packages.command),
             origin             = COALESCE(?6, packages.origin),
-            description_custom = COALESCE(?7, packages.description_custom);",
+            description_custom = COALESCE(?7, packages.description_custom),
+            appimage_file      = COALESCE(?8, packages.appimage_file);",
         rusqlite::params![
             name,
             info.description,
@@ -102,7 +108,8 @@ pub fn upsert(
             category,
             command,
             origin,
-            custom_description
+            custom_description,
+            appimage_file
         ],
     )
     .with_context(|| format!("no se pudo guardar '{name}'"))?;
@@ -120,7 +127,7 @@ pub fn remove(conn: &Connection, name: &str) -> Result<bool> {
 /// Todos los paquetes del catálogo, ordenados alfabéticamente.
 pub fn list(conn: &Connection) -> Result<Vec<Pkg>> {
     let mut stmt = conn
-        .prepare("SELECT name, category, command, origin, added_at FROM packages ORDER BY name")
+        .prepare("SELECT name, category, command, origin, appimage_file, added_at FROM packages ORDER BY name")
         .context("no se pudo leer el catálogo")?;
 
     let rows = stmt
@@ -130,7 +137,8 @@ pub fn list(conn: &Connection) -> Result<Vec<Pkg>> {
                 category: row.get(1)?,
                 command: row.get(2)?,
                 origin: row.get(3)?,
-                added_at: row.get(4)?,
+                appimage_file: row.get(4)?,
+                added_at: row.get(5)?,
             })
         })
         .context("no se pudo leer el catálogo")?;
@@ -153,7 +161,7 @@ pub fn search(conn: &Connection, query: &str) -> Result<Vec<Pkg>> {
     let pattern = format!("%{}%", escape_like(query));
     let mut stmt = conn
         .prepare(
-            "SELECT name, category, command, origin, added_at FROM packages
+            "SELECT name, category, command, origin, appimage_file, added_at FROM packages
              WHERE name        LIKE ?1 ESCAPE '\\'
                 OR description LIKE ?1 ESCAPE '\\'
                 OR category    LIKE ?1 ESCAPE '\\'
@@ -170,7 +178,8 @@ pub fn search(conn: &Connection, query: &str) -> Result<Vec<Pkg>> {
                 category: row.get(1)?,
                 command: row.get(2)?,
                 origin: row.get(3)?,
-                added_at: row.get(4)?,
+                appimage_file: row.get(4)?,
+                added_at: row.get(5)?,
             })
         })
         .context("no se pudo buscar en el catálogo")?;
@@ -249,6 +258,7 @@ mod tests {
                 command     TEXT,
                 origin      TEXT,
                 description_custom TEXT,
+                appimage_file TEXT,
                 added_at    TEXT NOT NULL
             );",
         )
@@ -259,9 +269,9 @@ mod tests {
     #[test]
     fn lista_categorias_en_uso_con_conteo() {
         let conn = setup();
-        upsert(&conn, "fzf", Some("Files"), None, None, None, &PacmanInfo::default()).unwrap();
-        upsert(&conn, "mise", Some("development"), None, None, None, &PacmanInfo::default()).unwrap();
-        upsert(&conn, "yazi", Some("Files"), None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "fzf", Some("Files"), None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "mise", Some("development"), None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "yazi", Some("Files"), None, None, None, None, &PacmanInfo::default()).unwrap();
 
         let cats = list_categories(&conn).unwrap();
         assert_eq!(cats, vec![("development".into(), 1), ("Files".into(), 2)]);
@@ -270,8 +280,8 @@ mod tests {
     #[test]
     fn ignora_categorias_vacias() {
         let conn = setup();
-        upsert(&conn, "fzf", Some(""), None, None, None, &PacmanInfo::default()).unwrap();
-        upsert(&conn, "mise", None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "fzf", Some(""), None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "mise", None, None, None, None, None, &PacmanInfo::default()).unwrap();
 
         assert!(list_categories(&conn).unwrap().is_empty());
     }
@@ -279,8 +289,8 @@ mod tests {
     #[test]
     fn busca_por_nombre_y_descripcion() {
         let conn = setup();
-        upsert(&conn, "mise", None, None, None, None, &PacmanInfo { description: "Gestor de versiones de Node, Python y Go".into(), version: String::new() }).unwrap();
-        upsert(&conn, "yazi", None, None, None, None, &PacmanInfo { description: "Explorador de archivos".into(), version: String::new() }).unwrap();
+        upsert(&conn, "mise", None, None, None, None, None, &PacmanInfo { description: "Gestor de versiones de Node, Python y Go".into(), version: String::new() }).unwrap();
+        upsert(&conn, "yazi", None, None, None, None, None, &PacmanInfo { description: "Explorador de archivos".into(), version: String::new() }).unwrap();
 
         let res = search(&conn, "node").unwrap();
         assert_eq!(res.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["mise"]);
@@ -292,8 +302,8 @@ mod tests {
     #[test]
     fn busca_por_comando_y_escapa_comodines() {
         let conn = setup();
-        upsert(&conn, "zoxide", None, Some("z"), None, None, &PacmanInfo::default()).unwrap();
-        upsert(&conn, "otro", None, Some("cien_por_ciento"), None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "zoxide", None, Some("z"), None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "otro", None, Some("cien_por_ciento"), None, None, None, &PacmanInfo::default()).unwrap();
 
         let res = search(&conn, "z").unwrap();
         assert_eq!(res.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["zoxide"]);
@@ -308,15 +318,15 @@ mod tests {
     #[test]
     fn guarda_y_conserva_el_comando() {
         let conn = setup();
-        upsert(&conn, "zoxide", Some("Terminal"), Some("z"), None, None, &PacmanInfo::default()).unwrap();
-        upsert(&conn, "fzf", None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "zoxide", Some("Terminal"), Some("z"), None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "fzf", None, None, None, None, None, &PacmanInfo::default()).unwrap();
 
         let pkgs = list(&conn).unwrap();
         let z = pkgs.iter().find(|p| p.name == "zoxide").unwrap();
         assert_eq!(z.command.as_deref(), Some("z"));
 
         // Re-add sin --command no debe borrar el valor guardado.
-        upsert(&conn, "zoxide", None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "zoxide", None, None, None, None, None, &PacmanInfo::default()).unwrap();
         let z = list(&conn).unwrap().into_iter().find(|p| p.name == "zoxide").unwrap();
         assert_eq!(z.command.as_deref(), Some("z"));
     }
@@ -327,6 +337,7 @@ mod tests {
         upsert(
             &conn,
             "fzf",
+            None,
             None,
             None,
             None,
@@ -348,6 +359,7 @@ mod tests {
             None,
             Some("AUR"),
             Some("Buscador difuso"),
+            None,
             &PacmanInfo { description: "fuzzy finder v2".into(), version: String::new() },
         )
         .unwrap();
@@ -356,13 +368,13 @@ mod tests {
         assert_eq!(fzf.origin.as_deref(), Some("AUR"));
 
         // Re-añadir sin -o ni -d conserva el origen y la descripción personal.
-        upsert(&conn, "fzf", None, None, None, None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "fzf", None, None, None, None, None, &PacmanInfo::default()).unwrap();
         let fzf = list(&conn).unwrap().into_iter().find(|p| p.name == "fzf").unwrap();
         assert_eq!(fzf.origin.as_deref(), Some("AUR"));
         assert_eq!(get_description(&conn, "fzf").unwrap().as_deref(), Some("Buscador difuso"));
 
         // Un origen explícito (como el "pacman" de install) sí sobrescribe.
-        upsert(&conn, "fzf", None, None, Some("pacman"), None, &PacmanInfo::default()).unwrap();
+        upsert(&conn, "fzf", None, None, Some("pacman"), None, None, &PacmanInfo::default()).unwrap();
         let fzf = list(&conn).unwrap().into_iter().find(|p| p.name == "fzf").unwrap();
         assert_eq!(fzf.origin.as_deref(), Some("pacman"));
     }
