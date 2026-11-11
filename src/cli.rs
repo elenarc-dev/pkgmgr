@@ -74,4 +74,10 @@ pub enum Command {
         /// Nombre del paquete en el catálogo
         package: Vec<String>,
     },
+    /// Ejecuta un AppImage registrado en el catálogo por su nombre.
+    #[command(visible_alias = "e")]
+    Execute {
+        /// Nombre del paquete en el catálogo
+        package: String,
+    },
 }

@@ -52,6 +52,7 @@ fn run(cli: Cli) -> Result<()> {
         Some(Command::Search { query }) => cmd_search(&query),
         Some(Command::Info { package }) => cmd_info(package),
         Some(Command::Remove { package }) => cmd_remove(package),
+        Some(Command::Execute { package }) => cmd_execute(&package),
         None => {
             // eprintln!("Uso: pkg <COMANDO>\n\nEjecuta 'pkg --help' para ver los comandos disponibles.");
             // Ok(())
@@ -434,5 +435,49 @@ fn cmd_remove(names: Vec<String>) -> Result<()> {
             bail!("'{name}' no está en tu catálogo.");
         }
     }
+    Ok(())
+}
+
+/// `pkg execute <paquete>` (alias `e`): ejecuta un AppImage registrado en el catálogo.
+fn cmd_execute(name: &str) -> Result<()> {
+    let conn = database::open()?;
+
+    // Verificamos que el paquete esté en el catálogo.
+    let Some(pkg) = database::list(&conn)?
+        .into_iter()
+        .find(|p| p.name == *name)
+    else {
+        bail!("'{name}' no está en tu catálogo. Añádelo con 'pkg install <archivo.AppImage>'.");
+    };
+
+    // Solo ejecutamos AppImages.
+    if pkg.origin.as_deref() != Some("appimage") {
+        bail!("'{name}' no es un AppImage (origen: {:?}). Solo se pueden ejecutar AppImages.", pkg.origin.as_deref().unwrap_or("desconocido"));
+    }
+
+    // Construimos la ruta del .AppImage en ~/Apps.
+    let apps = appimage::apps_dir()?;
+    let appimage_path = apps.join(format!("{name}.AppImage"));
+
+    if !appimage_path.exists() {
+        bail!(
+            "No se encontró el fichero '{}'.\nVerifica que el AppImage esté instalado en ~/Apps.",
+            appimage_path.display()
+        );
+    }
+
+    println!("Ejecutando '{}' desde {}...", name, appimage_path.display());
+    let status = std::process::Command::new(&appimage_path)
+        .status()
+        .with_context(|| format!("no se pudo ejecutar '{}'", appimage_path.display()))?;
+
+    if !status.success() {
+        if let Some(code) = status.code() {
+            bail!("'{name}' terminó con código de salida {}", code);
+        } else {
+            bail!("'{name}' terminó por una señal.");
+        }
+    }
+
     Ok(())
 }
