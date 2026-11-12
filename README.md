@@ -23,18 +23,18 @@ En un entorno Linux moderno como Arch, es fácil instalar docenas de herramienta
 
 ## 🛠️ Instalación y Configuración
 
-La instalación es sencilla: simplemente añade la ubicación del ejecutable a tu variable `$PATH`.
+La instalación es simple y requiere solo descargar el ejecutable.
 
 **1. Instalar el Paquete:**
 *(Asumiendo que ya estás en un entorno donde `pkgmgr` puede ser instalado)*
 
 ```bash
-# Ejemplo de instalación (ajusta según el método real)
-sudo pacman -S pkgmgr 
+# Descarga e instala el binario manualmente, luego añádelo a tu PATH.
+# Ejemplo: tar -xzf pkgmgr-vX.Y.tar.gz && sudo mv pkgmgr /usr/local/bin
 ```
 
 **2. Verificar la Instalación:**
-Una vez instalado, el comando principal estará disponible:
+Una vez colocado en el `$PATH`, el comando principal estará disponible:
 
 ```bash
 pkg --help
@@ -54,14 +54,15 @@ pkg list
 # o su alias: pkg ls
 ```
 
-### 2. Añadir un Comando
-Ejemplo: Quieres añadir `htop` para monitorear procesos.
+### 2. Añadir un Comando (Método Recomendado: `install`)
+Ejemplo avanzado: Registrar un paquete y personalizar su nombre o descripción con información oficial del sistema.
 
 ```bash
-pkg add htop --description "Monitor interactivo de recursos del sistema, mejor que top." --category System
+# Sintaxis general: pkg install <paquete> --command <CMD_DESEADO> --description "<MIS_DETALLES>" [--category <CAT>]
+pkg install htop --command topmon --description "Monitor interactivo de recursos, mejor que top." --category System
 ```
 
-> **Tip:** Si el paquete está instalado con `pacman`, usa `pkg install <paquete>` para registrarlo automáticamente y guardar la información más detallada.
+**Nota:** El comando `install` es el método preferido porque registra la información oficial del paquete (categoría por defecto 'System', descripción y etc.), pero permite sobreescribir detalles con parámetros adicionales.
 
 ### 3. Buscar un Comando Específico
 Si necesitas saber qué hace la herramienta de redes:
@@ -75,14 +76,10 @@ pkg search networking
 
 `PkgMgr` ha sido diseñado con los siguientes comandos subyacentes para manejar todas tus necesidades:
 
-| Comando | Alias(s) | Descripción | Uso Recomendado |
+| Command | Alias(s) | Description | Recommended Use Case |
 | :--- | :--- | :--- | :--- |
+| **`install`** | `i` | Instala con pacman y registra en el catálogo. Es el método preferido, ya que extrae la información oficial del paquete. Puede ser personalizado con flags como `--command <CMD>` o `--description "<DESCRIPCIÓN>"`. | Usar siempre que se conozca el nombre del paquete (ej. \`pkg install htop\`). Ideal para capturar metadatos completos y personalizarlos. |
 | **`list`** | `ls` | Muestra todos los paquetes registrados en el catálogo. | Revisión general del inventario. |
-| **`search`** | `-q`, `--query` | Busca por nombre, descripción o categoría. Es la función más usada. | Cuando recuerdas *qué hace* pero no el *nombre*. |
-| **`add`** | N/A | Añade un paquete manualmente (ej. AppImage o binario sin gestor). | Para herramientas externas o manuales. |
-| **`info`** | N/A | Muestra detalles completos de un comando registrado, incluyendo categorías y descripciones extendidas. | Verificar el contexto completo de una herramienta. |
-| **`remove`** | N/A | Elimina el registro del catálogo (¡Advertencia! No desinstala nada en tu sistema). | Cuando ya no utilizas un programa. |
-| **`execute`**| `e` | Ejecuta directamente un comando registrado por su nombre. | Para usar una herramienta de forma rápida sin escribir todo el path. |
 
 ## 🔮 Próximos Planes (Roadmap)
 

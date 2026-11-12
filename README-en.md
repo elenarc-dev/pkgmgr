@@ -23,18 +23,18 @@ In a modern Linux environment like Arch, it's easy to install dozens of CLI tool
 
 ## 🛠️ Installation and Setup
 
-Installation is straightforward: simply add the executable location to your `$PATH` variable.
+The installation is currently achieved by downloading the executable binary and manually adding its location to your `$PATH`, as it is not yet packaged for distribution via tools like pacman or cargo.
 
 **1. Install the Package:**
 *(Assuming you are in an environment where `pkgmgr` can be installed)*
 
 ```bash
-# Example installation command (adjust according to the real method)
-sudo pacman -S pkgmgr 
+# Download and install the binary manually, then add it to your PATH.
+# Example: tar -xzf pkgmgr-vX.Y.tar.gz && sudo mv pkgmgr /usr/local/bin
 ```
 
 **2. Verify Installation:**
-Once installed, the main command will be available:
+Once placed in `$PATH`, the main command will be available:
 
 ```bash
 pkg --help
@@ -54,14 +54,15 @@ pkg list
 # or its alias: pkg ls
 ```
 
-### 2. Add a Command
-Example: You want to add `htop` for system monitoring.
+### 2. Add a Command (Recommended Method: `install`)
+Advanced example: Registering a package and customizing its name or description with official system information.
 
 ```bash
-pkg add htop --description "Interactive system resource monitor, better than top." --category System
+# General syntax: pkg install <package> --command <DESIRED_CMD> --description "<MY_DETAILS>" [--category <CAT>]
+pkg install htop --command topmon --description "Interactive system resource monitor, better than top." --category System
 ```
 
-> **Tip:** If the package is installed with `pacman`, use `pkg install <package>` to automatically register it and save more detailed information.
+**Note:** The `install` command is the preferred method because it extracts official package metadata (default category 'System', description, etc.), but allows overriding details with additional parameters.
 
 ### 3. Search for a Specific Command
 If you need to know what your networking tool does:
@@ -77,12 +78,8 @@ pkg search networking
 
 | Command | Alias(s) | Description | Recommended Use Case |
 | :--- | :--- | :--- | :--- |
+| **`install`** | `i` | Installs with pacman and registers in the catalog. This is the preferred method, as it extracts official package metadata. It can be customized with flags like `--command <CMD>` or `--description "<DESCRIPTION>"`. | Use whenever you know the package name (e.g., \`pkg install htop\`). Ideal for capturing full metadata and customizing details. |
 | **`list`** | `ls` | Lists all packages registered in the catalog. | General inventory review. |
-| **`search`** | `-q`, `--query` | Searches by name, description, or category. This is the most used function. | When you remember *what it does* but not the *name*. |
-| **`add`** | N/A | Manually adds a package (e.g., AppImage or binary without a manager). | For external or manual tools. |
-| **`info`** | N/A | Shows full details of a registered command, including categories and extended descriptions. | Verifying the complete context of a tool. |
-| **`remove`** | N/A | Removes the record from the catalog (Warning! This does not uninstall anything on your system). | When you no longer use a program. |
-| **`execute`**| `e` | Directly executes a registered command by its name. | For quickly using a tool without typing the full path. |
 
 ## 🔮 Roadmap
 
