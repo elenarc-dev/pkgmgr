@@ -1,0 +1,96 @@
+# 🚀 PkgMgr: The Definitive CLI Command Catalog for Linux
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Arch Linux Compatibility](https://img.shields.io/badge/Compatible-Arch%20Linux-brightgreen.svg)]()
+
+> Overwhelmed by the sheer number of CLI commands installed on your system? `PkgMgr` is a personal catalog manager designed to **inventory, organize, and recall** all your favorite Linux command-line utilities, making the terminal experience more accessible and intuitive.
+
+---
+
+## ✨ What Problem Does PkgMgr Solve?
+
+In a modern Linux environment like Arch, it's easy to install dozens of CLI tools (from `git` to specialized microservices). Over time, remembering the exact command or understanding what an executable does can become a tedious task.
+
+`PkgMgr` solves this by creating a **centralized and navigable database** of all your favorite commands. Instead of searching Google or trying to recall complex names, you simply use `pkg` to query, list, or execute what you need.
+
+## 💡 Key Features
+
+*   **Central Inventory:** Keep a single record of every CLI program you use.
+*   **Intelligent Search:** Search by command name, description, or even custom categories.
+*   **Personal Categorization:** Assign detailed descriptions and classify tools into relevant categories (e.g., `Development`, `Networking`, `Utilities`).
+*   **Direct Execution:** Not just a catalog; it also allows direct execution of registered AppImage files or binaries.
+*   **Scalable:** Designed to be the control center for your CLI workflow, with future support for more formats (beyond Arch/Pacman).
+
+## 🛠️ Installation and Setup
+
+Installation is straightforward: simply add the executable location to your `$PATH` variable.
+
+**1. Install the Package:**
+*(Assuming you are in an environment where `pkgmgr` can be installed)*
+
+```bash
+# Example installation command (adjust according to the real method)
+sudo pacman -S pkgmgr 
+```
+
+**2. Verify Installation:**
+Once installed, the main command will be available:
+
+```bash
+pkg --help
+```
+
+> **Important Note:** The executable is named `pkgmgr`, but to simplify your workflow, you can use it as the alias **`pkg`**.
+
+## 🚀 Getting Started
+
+Use these commands to start cataloging your tools!
+
+### 1. List Known Packages
+To see what you have registered so far:
+
+```bash
+pkg list
+# or its alias: pkg ls
+```
+
+### 2. Add a Command
+Example: You want to add `htop` for system monitoring.
+
+```bash
+pkg add htop --description "Interactive system resource monitor, better than top." --category System
+```
+
+> **Tip:** If the package is installed with `pacman`, use `pkg install <package>` to automatically register it and save more detailed information.
+
+### 3. Search for a Specific Command
+If you need to know what your networking tool does:
+
+```bash
+pkg search networking
+# or pkg -q networking
+```
+
+## 📚 Available Commands (Reference)
+
+`PkgMgr` is designed with the following subcommands to handle all your needs:
+
+| Command | Alias(s) | Description | Recommended Use Case |
+| :--- | :--- | :--- | :--- |
+| **`list`** | `ls` | Lists all packages registered in the catalog. | General inventory review. |
+| **`search`** | `-q`, `--query` | Searches by name, description, or category. This is the most used function. | When you remember *what it does* but not the *name*. |
+| **`add`** | N/A | Manually adds a package (e.g., AppImage or binary without a manager). | For external or manual tools. |
+| **`info`** | N/A | Shows full details of a registered command, including categories and extended descriptions. | Verifying the complete context of a tool. |
+| **`remove`** | N/A | Removes the record from the catalog (Warning! This does not uninstall anything on your system). | When you no longer use a program. |
+| **`execute`**| `e` | Directly executes a registered command by its name. | For quickly using a tool without typing the full path. |
+
+## 🔮 Roadmap
+
+*   ✅ Advanced support for AppImages and external binaries.
+*   ✨ Interactive selector mode: A guided menu that allows you to choose tools without remembering commands.
+*   🧩 Enhanced category and tag management.
+
+---
+_This project is a personal catalog designed by the user to improve the command-line experience._
+
+**Contributions:** Be part of the effort! Help us catalog more commands and features.
