@@ -1,93 +1,164 @@
-# 🚀 PkgMgr: El Catálogo Definitivo de Comandos CLI para Linux
+# 🚀 PkgMgr: catálogo personal de comandos CLI para Linux
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Arch Linux Compatibility](https://img.shields.io/badge/Compatible-Arch%20Linux-brightgreen.svg)]()
+[![Arch Linux](https://img.shields.io/badge/Arch%20Linux-compatible-brightgreen.svg)]()
+[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 
-> ¿Estás abrumado por la cantidad de comandos CLI que tienes instalados en tu sistema? `PkgMgr` es un gestor de catálogo personal diseñado para **inventariar, organizar y recordar** todos tus utilitarios de línea de comandos de Linux, haciendo que la experiencia del terminal sea más accesible e intuitiva.
+**Idiomas:** Español · [English](README-en.md)
+
+> ¿Te cuesta recordar todos los comandos CLI que tienes instalados? `PkgMgr` es un catálogo personal diseñado para **inventariar, organizar y recordar** tus utilidades de línea de comandos, haciendo que la terminal sea más fácil de usar.
 
 ---
 
-## ✨ ¿Qué Problema Resuelve PkgMgr?
+## ✨ ¿Qué problema resuelve?
 
-En un entorno Linux moderno como Arch, es fácil instalar docenas de herramientas CLI (desde `git` hasta microservicios especializados). Con el tiempo, recordar el comando exacto o saber qué utilidad hace un ejecutable puede ser una tarea tediosa.
+En un entorno Linux moderno como Arch Linux, es fácil acumular decenas de herramientas CLI, desde `git` hasta utilidades muy especializadas. Con el tiempo, recordar el comando exacto o saber qué hace un ejecutable puede volverse tedioso.
 
-`PkgMgr` resuelve esto creando una **base de datos centralizada y navegable** de todos tus comandos favoritos. En lugar de buscar en Google o recordar nombres complejos, simplemente usas `pkg` para consultar, listar o ejecutar lo que necesitas.
+`PkgMgr` resuelve esto con una **base de datos local, centralizada y consultable** de tus comandos favoritos. En lugar de buscar en internet o exprimir la memoria, usas `pkg` para consultar, listar o ejecutar lo que necesitas.
 
-## 💡 Características Principales
+## 💡 Características
 
-*   **Inventario Centralizado:** Mantén un registro único de absolutamente todos los programas CLI que utilizas.
-*   **Búsqueda Inteligente:** Busca por nombre del comando, descripción o incluso categorías personalizadas.
-*   **Categorización Personal:** Asigna descripciones detalladas y clasifica herramientas en categorías relevantes (ej. `Desarrollo`, `Redes`, `Utilidades`).
-*   **Ejecución Directa:** No solo catálogo; también permite ejecutar directamente los AppImage o binarios registrados.
-*   **Evolucionable:** Diseñado para ser el centro de control de tu flujo de trabajo CLI, con soporte futuro para más formatos (más allá de Arch/Pacman).
+- **Inventario centralizado:** un único registro de todos los programas CLI que usas.
+- **Búsqueda rápida:** por nombre, descripción, categoría, comando u origen, sin distinguir mayúsculas.
+- **Categorías libres:** clasifica las herramientas como prefieras; hay categorías sugeridas.
+- **Integración con pacman:** obtiene la descripción y la versión oficiales del paquete.
+- **AppImages:** los instala en `~/Apps` con permisos `700` y los ejecuta por su nombre desde el catálogo.
+- **Sin dependencias extra:** solo necesita `pacman` (y `sudo` para instalar paquetes).
 
-## 🛠️ Instalación y Configuración
+## 📋 Requisitos
 
-La instalación es simple y requiere solo descargar el ejecutable.
+- **Arch Linux** o una distribución con `pacman`.
+- **Rust 1.85 o superior** para compilar (el proyecto usa la edición 2024).
+- **`sudo`** para instalar paquetes con `pkg install`.
 
-**1. Instalar el Paquete:**
-*(Asumiendo que ya estás en un entorno donde `pkgmgr` puede ser instalado)*
+## 🛠️ Instalación
+
+El binario se llama **`pkg`**. Compílalo desde el directorio del proyecto:
 
 ```bash
-# Descarga e instala el binario manualmente, luego añádelo a tu PATH.
-# Ejemplo: tar -xzf pkgmgr-vX.Y.tar.gz && sudo mv pkgmgr /usr/local/bin
+cargo build --release
+sudo install -Dm755 target/release/pkg /usr/local/bin/pkg
 ```
 
-**2. Verificar la Instalación:**
-Una vez colocado en el `$PATH`, el comando principal estará disponible:
+También puedes instalarlo solo para tu usuario con Cargo:
 
 ```bash
+cargo install --path .
+```
+
+Comprueba que funciona:
+
+```bash
+pkg --version
 pkg --help
 ```
 
-> **Nota Importante:** El ejecutable se llama `pkgmgr`, pero para simplificar tu flujo de trabajo, puedes usarlo como el alias **`pkg`**.
-
-## 🚀 Primeros Pasos (Getting Started)
-
-¡Usa estos comandos para empezar a catalogar tus herramientas!
-
-### 1. Listar Paquetes Conocidos
-Para ver qué has registrado hasta ahora:
+## 🚀 Primeros pasos
 
 ```bash
+# Ver el catálogo (también puedes ejecutar `pkg` sin subcomando)
 pkg list
-# o su alias: pkg ls
+
+# Instalar un paquete con pacman y registrarlo
+pkg install htop -c System
+
+# Buscar una herramienta por nombre, descripción o categoría
+pkg search network
 ```
 
-### 2. Añadir un Comando (Método Recomendado: `install`)
-Ejemplo avanzado: Registrar un paquete y personalizar su nombre o descripción con información oficial del sistema.
+## 📚 Comandos
+
+| Comando   | Alias           | Descripción                                                                 |
+| :-------- | :-------------- | :-------------------------------------------------------------------------- |
+| `add`     | —               | Registra en el catálogo un paquete **ya instalado** (no instala nada).      |
+| `install` | `i`             | Instala con pacman y lo registra; si recibe un `.AppImage`, lo instala en `~/Apps` y lo registra. |
+| `list`    | `ls`            | Lista los paquetes del catálogo.                                            |
+| `search`  | `-q`, `--query` | Busca por nombre, descripción, categoría, comando u origen.                 |
+| `info`    | —               | Muestra la ficha de un paquete y refresca sus metadatos desde pacman.       |
+| `remove`  | —               | Elimina un paquete del catálogo (no lo desinstala del sistema).             |
+| `execute` | `e`             | Ejecuta un AppImage registrado en el catálogo.                              |
+
+### Sintaxis
+
+```text
+pkg add     [OPCIONES] [PAQUETE]...
+pkg install [OPCIONES] [PAQUETE]...
+pkg list
+pkg search  <TEXTO>          # también: pkg -q <TEXTO> | pkg --query <TEXTO>
+pkg info    [PAQUETE]...
+pkg remove  [PAQUETE]...
+pkg execute <PAQUETE>        # también: pkg e <PAQUETE>
+```
+
+> **Nota:** si ejecutas `pkg` sin subcomando, se muestra el catálogo (equivale a `pkg list`).
+
+### Opciones comunes de `add` e `install`
+
+| Opción                    | Descripción                                                                                                                   |
+| :------------------------ | :---------------------------------------------------------------------------------------------------------------------------- |
+| `-c, --category [CAT]`    | Categoría personal. Sin valor (`pkg add -c`) muestra las categorías en uso y las sugeridas.                                   |
+| `--command <CMD>`         | Comando con el que se invoca si difiere del nombre del paquete (por ejemplo, `zoxide` → `z`). En AppImages fija el nombre en el catálogo. |
+| `-d, --description <TEXT>`| Descripción personal; tiene prioridad sobre la de pacman.                                                                     |
+| `-o, --origin <ORIGEN>`   | Origen del registro (`manual`, `pacman`, `appimage` o texto libre). Por defecto: `manual` en `add`, `pacman` en `install` y `appimage` en AppImages. |
+
+`install` acepta varios paquetes a la vez. Si un paquete no existe en los repositorios, avisa y **solo lo registra** (útil para AUR u otras vías). En el caso de los AppImages, si faltan `--command` o `-d`, se preguntan de forma interactiva.
+
+## 🧪 Ejemplos
 
 ```bash
-# Sintaxis general: pkg install <paquete> --command <CMD_DESEADO> --description "<MIS_DETALLES>" [--category <CAT>]
-pkg install htop --command topmon --description "Monitor interactivo de recursos, mejor que top." --category System
+# Registrar una herramienta ya instalada
+pkg add fzf -c Terminal -d "Buscador difuso para la terminal"
+
+# Instalar y registrar con los metadatos de pacman
+pkg install htop -c System
+
+# Registrar un comando distinto del nombre del paquete
+pkg install zoxide --command z -c Terminal
+
+# Registrar un paquete de AUR u otra vía (no se instala, solo se registra)
+pkg install paru -o AUR
+
+# Ver las categorías en uso y las sugeridas
+pkg add -c
 ```
 
-**Nota:** El comando `install` es el método preferido porque registra la información oficial del paquete (categoría por defecto 'System', descripción y etc.), pero permite sobreescribir detalles con parámetros adicionales.
-
-### 3. Buscar un Comando Específico
-Si necesitas saber qué hace la herramienta de redes:
+### AppImages
 
 ```bash
-pkg search networking
-# o pkg -q networking
+# Instala el AppImage en ~/Apps (permisos 700) y lo registra como "gimp"
+pkg install ~/Descargas/GIMP-2.10.34-x86_64.AppImage \
+  --command gimp -c Other -d "Editor de imágenes"
+
+# Ejecutarlo desde el catálogo
+pkg execute gimp
+pkg e gimp
 ```
 
-## 📚 Comandos Disponibles (Reference)
+> El fichero `.AppImage` **se mueve** a `~/Apps`; no se conserva una copia en la ubicación original. Si el destino ya existe, se pide confirmación antes de sobrescribirlo. Solo se pueden ejecutar AppImages registrados, y `pkg execute` no admite argumentos adicionales para la aplicación.
 
-`PkgMgr` ha sido diseñado con los siguientes comandos subyacentes para manejar todas tus necesidades:
+### Consultar y eliminar
 
-| Command | Alias(s) | Description | Recommended Use Case |
-| :--- | :--- | :--- | :--- |
-| **`install`** | `i` | Instala con pacman y registra en el catálogo. Es el método preferido, ya que extrae la información oficial del paquete. Puede ser personalizado con flags como `--command <CMD>` o `--description "<DESCRIPCIÓN>"`. | Usar siempre que se conozca el nombre del paquete (ej. \`pkg install htop\`). Ideal para capturar metadatos completos y personalizarlos. |
-| **`list`** | `ls` | Muestra todos los paquetes registrados en el catálogo. | Revisión general del inventario. |
+```bash
+pkg info gimp     # ficha con descripción, versión, categoría, comando y origen
+pkg remove gimp   # solo lo quita del catálogo, no desinstala nada
+```
 
-## 🔮 Próximos Planes (Roadmap)
+## 🗄️ Datos y almacenamiento
 
-*   ✅ Soporte avanzado para AppImages y binarios externos.
-*   ✨ Modo selector interactivo: Un menú guiado que te permite elegir herramientas sin recordar comandos.
-*   🧩 Mayor soporte de categorías y etiquetas personalizadas.
+- **Base de datos:** `$XDG_DATA_HOME/pkg/pkg.db` (por defecto, `~/.local/share/pkg/pkg.db`). Es SQLite y se crea automáticamente.
+- **AppImages:** `~/Apps`.
+- **Categorías sugeridas:** `Development`, `Files`, `Git`, `System`, `Terminal`, `Network`, `Other`. Puedes usar cualquier otra.
+- **Salida de `list` y `search`:** nombre, categoría, comando entre corchetes y descripción.
+
+## 🔮 Roadmap
+
+- ✨ Selector interactivo: un menú guiado para elegir herramientas sin recordar comandos.
+- 🧩 Etiquetas además de categorías.
+- 🐧 Soporte para otros gestores de paquetes más allá de pacman.
+
+## 🤝 Contribuciones
+
+¡Las contribuciones son bienvenidas! Puedes abrir un *issue* o un *pull request* con mejoras, correcciones o nuevas ideas para el catálogo.
 
 ---
-_Este proyecto es un catálogo personal diseñado por el usuario para mejorar la experiencia con la línea de comandos._
 
-**Contribuciones:** ¡Sé parte del esfuerzo! Ayúdanos a catalogar más comandos y mejoras.
+_Proyecto personal creado para mejorar la experiencia con la línea de comandos._
